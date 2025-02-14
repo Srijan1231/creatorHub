@@ -1,0 +1,187 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                     String         @id @default(auto()) @map("_id") @db.ObjectId
+  email                  String         @unique
+  password               String
+  name                   String
+  profileImage           String?
+  suspended              Boolean        @default(false)
+  stripeCustomerId       String?
+  emailVerified          Boolean        @default(false)
+  emailVerificationToken String?
+  resetPasswordToken     String?
+  resetPasswordExpiry    DateTime?
+  platforms              Platform?
+  settings               Settings
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  admin                  Admin?
+  analytics              Analytics[]
+  notifications          Notification[]
+  supportTickets         Support[]      @relation("UserTickets")
+  income                 Income[]
+  responses              Response[]
+}
+
+model Admin {
+  id                 String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId             String     @unique @db.ObjectId
+  user               User       @relation(fields: [userId], references: [id])
+  role               String     @default("admin")
+  permissions        String[]
+  suspended          Boolean    @default(false)
+  lastLogin          DateTime?
+  lastPasswordChange DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  logs               AdminLog[]
+}
+
+model AdminLog {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  adminId      String   @db.ObjectId
+  admin        Admin    @relation(fields: [adminId], references: [id])
+  action       String
+  method       String
+  isSuperAdmin Boolean  @default(false)
+  ip           String
+  userAgent    String
+  details      Json?
+  createdAt    DateTime @default(now())
+}
+
+model Analytics {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id])
+  platform  String
+  date      DateTime
+  metrics   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Support {
+  id         String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String     @db.ObjectId
+  user       User       @relation("UserTickets", fields: [userId], references: [id])
+  subject    String
+  message    String
+  category   String
+  priority   String
+  status     String     @default("open")
+  assignedTo String?    @db.ObjectId
+  responses  Response[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+model Response {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  supportId String   @db.ObjectId
+  support   Support  @relation(fields: [supportId], references: [id])
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id])
+  message   String
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  data      Json?
+  createdAt DateTime @default(now())
+}
+
+model Income {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @db.ObjectId
+  user            User     @relation(fields: [userId], references: [id])
+  platform        String
+  amount          Float
+  currency        String
+  date            DateTime
+  type            String
+  status          String
+  details         Json?
+  stripeInvoiceId String?  @unique
+  paymentAttempts Json[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Subscription {
+  id                   String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId               String    @db.ObjectId
+  plan                 String
+  status               String
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean   @default(false)
+  stripeSubscriptionId String?   @unique
+  metadata             Json?
+  canceledAt           DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+type Platform {
+  youtube Youtube?
+  tiktok  Tiktok?
+  spotify Spotify?
+  patreon Patreon?
+}
+
+type Youtube {
+  channelId    String
+  accessToken  String
+  refreshToken String
+  tokenExpiry  DateTime
+}
+
+type Tiktok {
+  userId       String
+  accessToken  String
+  refreshToken String
+  tokenExpiry  DateTime
+}
+
+type Spotify {
+  artistId     String
+  accessToken  String
+  refreshToken String
+  tokenExpiry  DateTime
+}
+
+type Patreon {
+  creatorId    String
+  accessToken  String
+  refreshToken String
+  tokenExpiry  DateTime
+}
+
+type Settings {
+  emailNotifications  Boolean @default(true)
+  pushNotifications   Boolean @default(true)
+  theme               String  @default("system")
+  currency            String  @default("USD")
+  onboardingCompleted Boolean @default(false)
+}
